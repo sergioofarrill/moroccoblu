@@ -22,3 +22,28 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# Dependencias de Node (¡Crucial ocultar esto!)
+node_modules/
+
+# Salidas de compilación (Carpetas generadas automáticamente)
+dist/
+.astro/
+
+# Archivos de entorno y contraseñas secretas
+.env
+.env.production
+.env.development
+.env.local
+.env.*.local
+
+# Basura del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Cache de herramientas de desarrollo
+.vercel/
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
