@@ -1,35 +1,24 @@
-// @ts-check
+import { defineConfig } from "astro/config";
+import mdx from "@astrojs/mdx";
+import sitemap from "@astrojs/sitemap";
+import tailwindcss from "@tailwindcss/vite"; // Integración moderna y directa de Tailwind
 
-import mdx from '@astrojs/mdx';
-import sitemap from '@astrojs/sitemap';
-import { defineConfig, fontProviders } from 'astro/config';
-
-// https://astro.build/config
+// https://astro.build
 export default defineConfig({
-	site: 'https://example.com',
-	integrations: [mdx(), sitemap()],
-	fonts: [
-		{
-			provider: fontProviders.local(),
-			name: 'Atkinson',
-			cssVariable: '--font-atkinson',
-			fallbacks: ['sans-serif'],
-			options: {
-				variants: [
-					{
-						src: ['./src/assets/fonts/atkinson-regular.woff'],
-						weight: 400,
-						style: 'normal',
-						display: 'swap',
-					},
-					{
-						src: ['./src/assets/fonts/atkinson-bold.woff'],
-						weight: 700,
-						style: 'normal',
-						display: 'swap',
-					},
-				],
-			},
-		},
-	],
+  // 1. URL de producción de tu blog
+  site: "https://moroccoblu.com",
+
+  // 2. Integraciones estándar (removimos por completo el bloque obsoleto de fuentes)
+  integrations: [mdx(), sitemap()],
+
+  // 3. Compilador de Tailwind inyectado directo en Vite
+  vite: {
+    plugins: [tailwindcss()],
+  },
+
+  // 4. Tus redirecciones estáticas básicas protegidas
+  redirects: {
+    "/feed": { status: 301, destination: "/rss.xml" },
+    "/comments/feed": { status: 301, destination: "/blog" },
+  },
 });

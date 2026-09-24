@@ -1,0 +1,164 @@
+---
+// src/pages/[...page].astro
+import { getCollection } from 'astro:content';
+import '../styles/global.css';
+
+// Generar las páginas estáticas divididas de 27 en 27
+export async function getStaticPaths({ paginate }) {
+  const allPosts = (await getCollection('blog')).sort(
+    (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+  );
+  
+  // Forzar a que solo pagine si existen posts reales en el array
+  return paginate(allPosts, { pageSize: 27 });
+}
+
+
+const { page } = Astro.props;
+const posts = page.data;
+
+// Escaneo nativo de la galería de fallbacks vía Vite
+const imageModules = import.meta.glob('/public/blogimages/*.{jpg,jpeg,png,webp,gif,svg}', { eager: true });
+let galleryImages = Object.keys(imageModules).map((filePath) => filePath.replace('/public', ''));
+
+if (galleryImages.length === 0) {
+	galleryImages = ['/blogimages/underboat.png'];
+}
+
+
+const siteTitle = "Moroccoblu";
+const siteDescription = "Mindblown: a blog about philosophy, music and life loops.";
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content={siteDescription} />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<title>{siteTitle} {page.currentPage > 1 ? `— Página ${page.currentPage}` : ''}</title>
+	</head>
+	<body class="selection:bg-neutral-900 selection:text-white antialiased bg-white text-neutral-900">
+		
+		<header class="max-w-6xl mx-auto px-6 pt-24 pb-16 md:pt-32 md:pb-24 border-b border-neutral-200/50">
+			<div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+				<div>
+					<a href="/" class="text-4xl md:text-5xl font-sans font-bold tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors">
+						{siteTitle}
+					</a>
+					<p class="text-[10px] tracking-[0.25em] text-neutral-400 uppercase font-semibold mt-3">
+						Página {page.currentPage} de {page.lastPage} • {page.total} Entradas
+					</p>
+				</div>
+				<p class="max-w-xs text-xs tracking-wider text-neutral-400 uppercase font-medium leading-relaxed">
+					{siteDescription}
+				</p>
+			</div>
+		</header>
+
+		<main class="max-w-6xl mx-auto px-6 py-12 md:py-20">
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16">
+				{
+					posts.map((post, index) => {
+						const formattedDate = post.data.pubDate.toLocaleDateString('es-MX', {
+							year: 'numeric',
+							month: 'short',
+							day: 'numeric',
+						});
+
+						const globalIndex = page.start + index;
+const cleanSlug = post.slug || post.id.replace('.md', '').split('/').pop();
+
+// 🔍 LÓGICA DE EXTRACCIÓN MEJORADA
+let finalCoverImage = null;
+
+// Convertir todo el cuerpo del post a minúsculas para evitar problemas con <IMG o <img
+const bodyLower = post.body.toLowerCase();
+
+if (bodyLower.includes('<img') && post.body.match(/src=["']([^"']+)["']/i)) {
+	// 1. SI CONTIENE IMAGEN: Extraemos exactamente la primera URL limpia de la etiqueta img
+	const srcMatch = post.body.match(/src=["']([^"']+)["']/i);
+	finalCoverImage = srcMatch[1]; 
+} else if (bodyLower.includes('![') && post.body.match(/!\[.*\]\((.+)\)/)) {
+	// Soporte por si algún post usa sintaxis pura de Markdown para imágenes
+	const mdSrcMatch = post.body.match(/!\[.*\]\((.+)\)/);
+	finalCoverImage = mdSrcMatch[1];
+} else {
+	// 2. SI NO CONTIENE IMAGEN: Selecciona una al azar de la galería blogimages de forma fija por post
+	const postSeed = post.data.pubDate.valueOf() + post.data.title.length;
+	const imageIndex = Math.abs(postSeed) % galleryImages.length;
+	finalCoverImage = galleryImages[imageIndex];
+}
+
+						return (
+							<article class="group flex flex-col justify-between">
+								<a href={`/blog/${cleanSlug}/`} class="block w-full overflow-hidden bg-neutral-100 rounded-sm mb-5 aspect-[16/10]">
+									<img
+										src={finalCoverImage}
+										alt={post.data.title}
+										loading={index > 3 ? "lazy" : "eager"}
+										class="w-full h-full object-cover image-premium-hover grayscale contrast-[1.02] group-hover:grayscale-0 group-hover:contrast-[1.00]"
+									/>
+								</a>
+								
+								<div>
+									<div class="flex items-center gap-2 text-[10px] tracking-widest text-neutral-400 uppercase font-semibold mb-2">
+										<time datetime={post.data.pubDate.toISOString()}>{formattedDate}</time>
+										<span>•</span>
+										<span>Entrada {page.total - globalIndex}</span>
+									</div>
+									
+									<h2 class="text-lg font-sans font-bold tracking-tight text-neutral-900 leading-snug group-hover:text-neutral-500 transition-colors duration-300">
+										<a href={`/blog/${cleanSlug}/`}>
+											{post.data.title}
+										</a>
+									</h2>
+									
+									<p class="text-xs text-neutral-400 font-normal leading-relaxed line-clamp-2 mt-2">
+										{post.data.description || "Publicación del archivo histórico de Moroccoblu."}
+									</p>
+								</div>
+								
+								<div class="mt-4 pt-4 border-t border-neutral-100/50 flex justify-end">
+									<a href={`/blog/${cleanSlug}/`} class="text-[10px] uppercase tracking-widest text-neutral-400 group-hover:text-neutral-900 group-hover:translate-x-1 transition-all duration-300 flex items-center gap-1 font-semibold">
+										Leer más <span class="text-[8px]">→</span>
+									</a>
+								</div>
+							</article>
+						);
+					})
+				}
+			</div>
+
+			<!-- CONTROLES DE PAGINACIÓN -->
+			{(page.url.prev || page.url.next) && (
+				<nav class="flex items-center justify-between border-t border-neutral-200/50 mt-20 pt-8 text-[10px] uppercase tracking-widest font-semibold text-neutral-400">
+					<div>
+						{page.url.prev ? (
+							<a href={page.url.prev} class="text-neutral-900 hover:text-neutral-400 transition-colors">← Anteriores</a>
+						) : (
+							<span class="opacity-30 cursor-not-allowed">← Anteriores</span>
+						)}
+					</div>
+					<div class="text-neutral-400 font-medium tracking-normal">{page.currentPage} / {page.lastPage}</div>
+					<div>
+						{page.url.next ? (
+							<a href={page.url.next} class="text-neutral-900 hover:text-neutral-400 transition-colors">Siguientes →</a>
+						) : (
+							<span class="opacity-30 cursor-not-allowed">Siguientes →</span>
+						)}
+					</div>
+				</nav>
+			)}
+		</main>
+
+		<footer class="max-w-6xl mx-auto px-6 py-12 border-t border-neutral-200/50 text-center md:text-left flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] text-neutral-400 tracking-widest font-semibold uppercase">
+			<div>&copy; {new Date().getFullYear()} {siteTitle} — Optimizado en Arquitectura Estática.</div>
+			<div class="flex gap-6">
+				<a href="/rss.xml" class="hover:text-neutral-900 transition-colors">RSS</a>
+				<a href="#" class="hover:text-neutral-900 transition-colors">Arriba ↑</a>
+			</div>
+		</footer>
+	</body>
+</html>

@@ -1,0 +1,141 @@
+---
+// src/pages/blog/[slug].astro
+import { getCollection, render } from 'astro:content'; 
+import '../../styles/global.css';
+
+// 1. Registrar los caminos estáticos para tus 111 posts históricos
+export async function getStaticPaths() {
+	const blogEntries = await getCollection('blog');
+	return blogEntries.map(entry => {
+		const currentSlug = entry.slug || entry.id.replace('.md', '').split('/').pop();
+		return {
+			params: { slug: currentSlug },
+			props: { entry },
+		};
+	});
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry); 
+
+// 💥 AQUÍ SE DEFINE LA VARIABLE PARA CORREGIR EL ERROR REFERENCEERROR
+const formattedDate = entry.data.pubDate.toLocaleDateString('es-MX', {
+	year: 'numeric',
+	month: 'long',
+	day: 'numeric',
+});
+
+// 2. Escaneo nativo de la galería de fallbacks vía Vite
+const imageModules = import.meta.glob('/public/blogimages/*.{jpg,jpeg,png,webp,gif,svg}', { eager: true });
+let galleryImages = Object.keys(imageModules).map((filePath) => filePath.replace('/public', ''));
+
+if (galleryImages.length === 0) {
+	galleryImages = ['/blogimages/underboat.png'];
+}
+
+// 3. LÓGICA DE EXTRACCIÓN DE PORTADA EDITORIAL (UNIFICADA)
+let postHeroImage = null;
+const entryBodyLower = entry.body.toLowerCase();
+
+if (entryBodyLower.includes('<img') && entry.body.match(/src=["']([^"']+)["']/i)) {
+	const srcMatch = entry.body.match(/src=["']([^"']+)["']/i);
+	postHeroImage = srcMatch[1]; // Extrae el path limpio
+} else if (entryBodyLower.includes('![') && entry.body.match(/!\[.*\]\((.+)\)/)) {
+	const mdSrcMatch = entry.body.match(/!\[.*\]\((.+)\)/);
+	postHeroImage = mdSrcMatch[1]; // Extrae el path limpio de Markdown
+} else {
+	// Semilla matemática idéntica a la del catálogo para sincronizar la portada al 100%
+	const postSeed = entry.data.pubDate.valueOf() + entry.data.title.length;
+	const deterministicIndex = Math.abs(postSeed) % galleryImages.length;
+	postHeroImage = galleryImages[deterministicIndex];
+}
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<title>{entry.data.title} — Moroccoblu</title>
+	</head>
+	<body class="selection:bg-neutral-900 selection:text-white antialiased bg-white text-neutral-900">
+		
+		<!-- NAVEGACIÓN SUPERIOR MINIMALISTA -->
+		<nav class="max-w-4xl mx-auto px-6 pt-12 pb-6 flex justify-between items-center text-[10px] uppercase tracking-widest font-semibold text-neutral-400">
+			<a href="/" class="hover:text-neutral-900 transition-colors flex items-center gap-1">
+				← Volver al archivo
+			</a>
+			<span>Moroccoblu</span>
+		</nav>
+
+		<!-- ENCABEZADO DEL POST -->
+		<header class="max-w-3xl mx-auto px-6 pt-12 pb-8 text-center md:text-left">
+			<div class="flex items-center justify-center md:justify-start gap-2 text-[10px] tracking-widest text-neutral-400 uppercase font-semibold mb-3">
+				{/* Aquí se manda a llamar formattedDate de forma segura */}
+				<time datetime={entry.data.pubDate.toISOString()}>{formattedDate}</time>
+				<span>•</span>
+				<span>Filosofía & Música</span>
+			</div>
+			<h1 class="text-3xl md:text-5xl font-sans font-bold tracking-tight text-neutral-900 leading-tight">
+				{entry.data.title}
+			</h1>
+		</header>
+
+		<!-- PORTADA GRANDE EDITORIAL SINCRONIZADA -->
+		<div class="max-w-4xl mx-auto px-6 my-8">
+			<div class="w-full overflow-hidden bg-neutral-100 rounded-sm aspect-[21/9]">
+				<img
+					src={postHeroImage}
+					alt={entry.data.title}
+					class="w-full h-full object-cover grayscale contrast-[1.02]"
+				/>
+			</div>
+		</div>
+
+				<!-- CUERPO DEL POST CON IMÁGENES ESTILIZADAS -->
+		<main class="max-w-2xl mx-auto px-6 py-8">
+			<div class="prose prose-neutral max-w-none 
+				prose-headings:font-sans prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-neutral-900
+				prose-p:text-sm prose-p:leading-relaxed prose-p:text-neutral-700 prose-p:mb-6
+				prose-a:text-neutral-900 prose-a:underline hover:prose-a:text-neutral-500
+				prose-strong:text-neutral-900 prose-strong:font-bold
+				prose-img:rounded-sm 
+				prose-img:my-10 
+				prose-img:w-full 
+				prose-img:h-auto 
+				prose-img:object-cover 
+				prose-img:shadow-sm
+				prose-img:border 
+				prose-img:border-neutral-100">
+				
+				<Content />
+				
+			</div>
+		</main>
+
+		<!-- FOOTER DE NAVEGACIÓN -->
+		<footer class="max-w-2xl mx-auto px-6 pt-12 pb-24 border-t border-neutral-100 mt-16 flex justify-between items-center text-[10px] uppercase tracking-widest font-semibold text-neutral-400">
+			<a href="/" class="text-neutral-900 hover:text-neutral-400 transition-colors">← Volver al inicio</a>
+			<a href="#" class="hover:text-neutral-900 transition-colors">Subir ↑</a>
+		</footer>
+
+	</body>
+</html>
+
+<!-- 💥 MICRO-ANIMACIONES DE ENTORNO EDITORIAL PARA IMÁGENES -->
+<style is:global>
+	/* Selecciona todas las imágenes que Astro inyecta dinámicamente desde el Markdown */
+	.prose img {
+		filter: grayscale(1) contrast(1.02);
+		transition: filter 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+		cursor: zoom-in;
+		margin: 1em auto;
+	}
+
+	/* Microinteracción elegante: Al pasar el cursor, la imagen recobra su color original de forma muy suave */
+	.prose img:hover {
+		filter: grayscale(0) contrast(1);
+		transform: scale(1.01);
+	}
+</style>

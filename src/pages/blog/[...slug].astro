@@ -13,8 +13,18 @@ type Props = CollectionEntry<'blog'>;
 
 const post = Astro.props;
 const { Content } = await render(post);
+
+// 1. Generate a stable Picsum seed URL using the post's unique ID/slug
+const picsumFallback = `https://picsum.photos{post.id}/1200/800`;
+
+// 2. Blend the fallback into the post data (adjusting for 'heroImage' or 'image' depending on your frontmatter schema)
+const updatedPostData = {
+	...post.data,
+	heroImage: post.data.heroImage || picsumFallback, 
+	// image: post.data.image || picsumFallback, // Uncomment this line instead if your schema uses 'image'
+};
 ---
 
-<BlogPost {...post.data}>
+<BlogPost {...updatedPostData}>
 	<Content />
 </BlogPost>
